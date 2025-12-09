@@ -1,0 +1,36 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    
+    {
+      "type": "java",
+      "name": "MainClass (JDK 25)",
+      "request": "launch",
+      "mainClass": "main.MainClass",
+      "projectName": "newwww",
+      "console": "integratedTerminal",
+      "classPaths": [
+        "${workspaceFolder}/bin"
+      ]
+    },
+    {
+      "name": "C/C++ Runner: Debug Session",
+      "type": "cppdbg",
+      "request": "launch",
+      "args": [],
+      "stopAtEntry": false,
+      "externalConsole": true,
+      "cwd": "c:/Users/Acer-PC/Desktop",
+      "program": "c:/Users/Acer-PC/Desktop/build/Debug/outDebug",
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ]
+    }
+  ]
+}
