@@ -31,6 +31,8 @@ public class Constants {
 		public static final int CANNON_BALL_WIDTH = (int) (Game.SCALE * CANNON_BALL_DEFAULT_WIDTH);
 		public static final int CANNON_BALL_HEIGHT = (int) (Game.SCALE * CANNON_BALL_DEFAULT_HEIGHT);
 		public static final float SPEED = 0.75f * Game.SCALE;
+		// Damage dealt by player bullets
+		public static final int BULLET_DAMAGE = 10;
 	}
 
 	public static class ObjectConstants {

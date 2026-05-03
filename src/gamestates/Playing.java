@@ -175,6 +175,16 @@ public class Playing extends State implements Statemethods {
                 player.setBlockUnlocked(sd.blockUnlocked);
             }
         } catch (Exception ignored) {}
+        // Enable all abilities for debugging: dash, double-jump, untargetable, gun, block, immortality
+        try {
+            player.grantDash();
+            player.grantDoubleJump();
+            player.grantUntargetable();
+            player.grantGun();
+            player.grantBlock();
+            player.grantImmortality();
+            player.changeAmmo(10);
+        } catch (Exception ignored) {}
         player.loadLvlData(levelManager.getCurrentLevel().getLevelData());
         player.setSpawn(levelManager.getCurrentLevel().getPlayerSpawn());
     }
@@ -267,6 +277,16 @@ public class Playing extends State implements Statemethods {
                     de.reset(x, -(int) (Game.SCALE * 15));
                     return;
                 }
+    }
+
+    /**
+     * Show a short on-screen status message for debugging / pickup feedback.
+     * @param msg message to show
+     * @param ms duration in milliseconds
+     */
+    public void showStatusMessage(String msg, int ms) {
+        statusMessage = msg;
+        statusMsgTimer = ms;
     }
 
     private void checkCloseToBorder() {

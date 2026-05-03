@@ -1,21 +1,19 @@
 package entities;
 
-import static utilz.Constants.PlayerConstants.*;
-import static utilz.HelpMethods.*;
-import static utilz.Constants.*;
-import static utilz.Constants.Directions.*;
-
+import audio.AudioPlayer;
+import gamestates.Playing;
 import java.awt.Color;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.image.RescaleOp;
 import java.awt.Point;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
-
-import audio.AudioPlayer;
-import gamestates.Playing;
+import java.awt.image.RescaleOp;
 import main.Game;
+import static utilz.Constants.*;
+import static utilz.Constants.Directions.*;
+import static utilz.Constants.PlayerConstants.*;
+import static utilz.HelpMethods.*;
 import utilz.LoadSave;
 
 public class Player extends Entity {
@@ -230,6 +228,32 @@ public class Player extends Entity {
         }
 
         updateAttackBox();
+
+        // Dash movement handling: move in small steps over multiple frames
+        if (isDashing) {
+            int step = facingDir * (int) (8 * Game.SCALE);
+            if (CanMoveHere(hitbox.x + step, hitbox.y, hitbox.width, hitbox.height, lvlData)) {
+                hitbox.x += step;
+            } else {
+                // stop dash early if blocked
+                isDashing = false;
+                dashFramesRemaining = 0;
+            }
+            dashFramesRemaining--;
+            if (dashFramesRemaining <= 0)
+                isDashing = false;
+
+            // advance animation quickly during dash for a smoother visual
+            updateAnimationTick();
+
+            syncXYWithHitbox();
+            // update grounded state after moving so gravity applies if over edge
+            if (!IsEntityOnFloor(hitbox, lvlData))
+                inAir = true;
+
+            // treat dash as movement for other systems
+            moving = true;
+        }
 
         if (state == HIT) {
             if (aniIndex <= playerCharacter.getSpriteAmount(state) - 3)
@@ -672,25 +696,17 @@ public class Player extends Entity {
     public void dash() {
         if (!dashUnlocked) return;
         if (dashCooldownTimer > 0) return; // on cooldown
-        final int dashDist = (int) (120 * Game.SCALE);
-        int dir = facingDir;
-        int targetX = (int) (hitbox.x + dir * dashDist);
-        // Grant brief invulnerability during dash BEFORE moving to protect from immediate terrain damage
-        invulnerableFrames = 30; // ~0.5s at 60FPS (tunable)
+        // reduce dash distance for better control during debugging
+        final int dashDist = (int) (80 * Game.SCALE);
+        // step per frame during dash
+        int step = (int) (8 * Game.SCALE);
+        int frames = Math.max(1, Math.abs(dashDist / step));
+        // Grant brief invulnerability during dash
+        invulnerableFrames = frames * 2;
         // start dash cooldown
         dashCooldownTimer = dashCooldownMs;
         isDashing = true;
-        dashFramesRemaining = invulnerableFrames;
-        // move stepwise until blocked or reached
-        int step = dir * (int) (4 * Game.SCALE);
-        while ((dir > 0 && hitbox.x < targetX) || (dir < 0 && hitbox.x > targetX)) {
-            if (CanMoveHere(hitbox.x + step, hitbox.y, hitbox.width, hitbox.height, lvlData)) {
-                hitbox.x += step;
-            } else {
-                break;
-            }
-        }
-        syncXYWithHitbox();
+        dashFramesRemaining = frames;
     }
 
     // Double jump

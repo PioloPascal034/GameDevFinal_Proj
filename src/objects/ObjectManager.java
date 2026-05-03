@@ -1,23 +1,17 @@
 package objects;
 
+import entities.Enemy;
+import entities.Player;
+import gamestates.Playing;
 import java.awt.Graphics;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
-
-import entities.Crabby;
-import entities.Enemy;
-import entities.Pinkstar;
-import entities.Player;
-import entities.Shark;
-
+import levels.Level;
+import main.Game;
 import static utilz.Constants.EnemyConstants.*;
 import static utilz.Constants.ObjectConstants.*;
 import static utilz.Constants.Projectiles.*;
-
-import gamestates.Playing;
-import levels.Level;
-import main.Game;
 import utilz.HelpMethods;
 import utilz.LoadSave;
 
@@ -30,6 +24,7 @@ public class ObjectManager {
     private BufferedImage[] cannonImgs, grassImgs;
     private BufferedImage[][] treeImgs;
     private BufferedImage spikeImg, cannonBallImg, bulletImg;
+    private BufferedImage ammoImg;
 
     private ArrayList<Potion> potions;
     private ArrayList<Ammo> ammos;
@@ -40,6 +35,13 @@ public class ObjectManager {
     public ObjectManager(Playing playing) {
         this.playing = playing;
         this.currentLevel = playing.getLevelManager().getCurrentLevel();
+        // initialize collections to avoid NPE if update/draw run
+        potions = new ArrayList<>();
+        ammos = new ArrayList<>();
+        containers = new ArrayList<>();
+        fragments = new ArrayList<>();
+        projectiles = new ArrayList<>();
+
         loadImgs();
     }
 
@@ -85,10 +87,13 @@ public class ObjectManager {
             player.changeHealth(RED_POTION_VALUE);
         else
             player.changeHealth(BLUE_POTION_VALUE);
+        try { playing.showStatusMessage("Picked up potion", 900); } catch (Exception ignored) {}
     }
 
     private void applyEffectToPlayer(Ammo a) {
-        playing.getPlayer().changeAmmo(5); // flat +5 ammo
+        int add = (a.getObjType() == RED_AMMO) ? RED_AMMO_VALUE : BLUE_AMMO_VALUE;
+        playing.getPlayer().changeAmmo(add);
+        try { playing.showStatusMessage("+" + add + " ammo", 900); } catch (Exception ignored) {}
     }
 
     public void checkObjectHit(Rectangle2D.Float attackbox) {
@@ -137,6 +142,8 @@ public class ObjectManager {
         spikeImg = LoadSave.GetSpriteAtlas(LoadSave.TRAP_ATLAS);
         cannonBallImg = LoadSave.GetSpriteAtlas(LoadSave.CANNON_BALL);
         bulletImg = LoadSave.GetSpriteAtlas(LoadSave.BULLET);
+        // optional debug ammo sprite (fire orb) - drop your image as /res/fire_orb.png
+        ammoImg = LoadSave.GetSpriteAtlas("fire_orb.png");
 
         loadCannonImgs();
     }
@@ -363,7 +370,9 @@ public class ObjectManager {
         for (T e : list) {
             if (e.isActive() && e.getState() != DEAD && e.getState() != HIT &&
                 p.getHitbox().intersects(e.getHitbox())) {
-                e.hurt(1);
+                System.out.println("DBG: Projectile hit enemy at x=" + p.getHitbox().x + " type=" + p.getType());
+                // pass attacker x to compute correct pushback direction
+                e.hurt(BULLET_DAMAGE, (float) p.getHitbox().x);
                 return true;
             }
         }
@@ -401,6 +410,11 @@ public class ObjectManager {
         }
     }
 
+    private void updateBackgroundTrees() {
+        for (BackgroundTree bt : currentLevel.getTrees())
+            bt.update();
+    }
+
     private void drawProjectiles(Graphics g, int xLvlOffset) {
         for (Projectile p : projectiles) {
             if (!p.isActive()) continue;
@@ -410,7 +424,13 @@ public class ObjectManager {
 
             BufferedImage img = (p.getType() == 1) ? bulletImg : cannonBallImg;
 
-            g.drawImage(img, dx, dy, CANNON_BALL_WIDTH, CANNON_BALL_HEIGHT, null);
+            int w = CANNON_BALL_WIDTH;
+            int h = CANNON_BALL_HEIGHT;
+            // flip horizontally when traveling left
+            if (p.getDir() >= 0)
+                g.drawImage(img, dx, dy, w, h, null);
+            else
+                g.drawImage(img, dx + w, dy, -w, h, null);
         }
     }
 
@@ -480,14 +500,14 @@ public class ObjectManager {
         for (Ammo a : ammos) {
             if (!a.isActive()) continue;
 
-            int type = (a.getObjType() == RED_AMMO) ? 1 : 0;
-
-            g.drawImage(
-                    potionImgs[type][a.getAniIndex()],
-                    (int) (a.getHitbox().x - a.getxDrawOffset() - xLvlOffset),
-                    (int) (a.getHitbox().y - a.getyDrawOffset()),
-                    AMMO_WIDTH, AMMO_HEIGHT,
-                    null);
+            int drawX = (int) (a.getHitbox().x - a.getxDrawOffset() - xLvlOffset);
+            int drawY = (int) (a.getHitbox().y - a.getyDrawOffset());
+            if (ammoImg != null) {
+                g.drawImage(ammoImg, drawX, drawY, AMMO_WIDTH, AMMO_HEIGHT, null);
+            } else {
+                int type = (a.getObjType() == RED_AMMO) ? 1 : 0;
+                g.drawImage(potionImgs[type][a.getAniIndex()], drawX, drawY, AMMO_WIDTH, AMMO_HEIGHT, null);
+            }
         }
     }
 
@@ -537,7 +557,19 @@ public class ObjectManager {
 
     public void spawnFragment(int x, int y) {
         if (fragments == null) fragments = new ArrayList<>();
-        fragments.add(new Fragment(x, y));
+        // Ensure fragment doesn't spawn inside water: if tile is water, move up until solid or max attempts
+        int spawnX = x;
+        int spawnY = y;
+        int attempts = 0;
+        int maxAttempts = 6; // try moving up up to 6 tiles
+        int fragmentSize = (int) (12 * Game.SCALE);
+        java.awt.geom.Rectangle2D.Float testBox = new java.awt.geom.Rectangle2D.Float(spawnX, spawnY, fragmentSize, fragmentSize);
+        while (attempts < maxAttempts && utilz.HelpMethods.IsEntityInWater(testBox, currentLevel.getLevelData())) {
+            spawnY -= Game.TILES_SIZE; // move up one tile
+            testBox.y = spawnY;
+            attempts++;
+        }
+        fragments.add(new Fragment(spawnX, spawnY));
     }
 
     public boolean hasActiveFragments() {

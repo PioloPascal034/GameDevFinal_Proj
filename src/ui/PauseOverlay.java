@@ -1,14 +1,13 @@
 package ui;
 
+import gamestates.Gamestate;
+import gamestates.Playing;
 import java.awt.Graphics;
 import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
-
-import gamestates.Gamestate;
-import gamestates.Playing;
 import main.Game;
-import utilz.LoadSave;
 import static utilz.Constants.UI.URMButtons.*;
+import utilz.LoadSave;
 
 public class PauseOverlay {
 
@@ -93,6 +92,10 @@ public class PauseOverlay {
 			}
 		} else if (isIn(e, replayB)) {
 			if (replayB.isMousePressed()) {
+				// Reset player to level spawn so replay starts at level start
+				if (playing.getLevelManager() != null && playing.getLevelManager().getCurrentLevel() != null) {
+					playing.getPlayer().setSpawn(playing.getLevelManager().getCurrentLevel().getPlayerSpawn());
+				}
 				playing.resetAll();
 				playing.unpauseGame();
 			}

@@ -1,9 +1,7 @@
 package objects;
 
 import java.awt.geom.Rectangle2D;
-
 import main.Game;
-
 import static utilz.Constants.Projectiles.*;
 
 public class Projectile {
@@ -39,6 +37,10 @@ public class Projectile {
 
 	public Rectangle2D.Float getHitbox() {
 		return hitbox;
+	}
+
+	public int getDir() {
+		return dir;
 	}
 
 	public void setActive(boolean active) {

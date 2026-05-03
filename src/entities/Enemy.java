@@ -1,16 +1,12 @@
 package entities;
 
+import gamestates.Playing;
+import java.awt.geom.Rectangle2D;
+import main.Game;
+import static utilz.Constants.*;
+import static utilz.Constants.Directions.*;
 import static utilz.Constants.EnemyConstants.*;
 import static utilz.HelpMethods.*;
-
-import java.awt.geom.Rectangle2D;
-
-import gamestates.Playing;
-
-import static utilz.Constants.Directions.*;
-import static utilz.Constants.*;
-
-import main.Game;
 
 public abstract class Enemy extends Entity {
 	protected int enemyType;
@@ -133,12 +129,35 @@ public abstract class Enemy extends Entity {
 
 	public void hurt(int amount) {
 		if (dodgeActive) return; // ignore damage while dodging
+		System.out.println("DBG: Enemy.hurt called (no attacker) amount=" + amount + " beforeHP=" + currentHealth + " type=" + enemyType + " x=" + hitbox.x);
 		currentHealth -= amount;
+		System.out.println("DBG: Enemy.hurt afterHP=" + currentHealth + "");
 		if (currentHealth <= 0)
 			newState(DEAD);
 		else {
 			newState(HIT);
+			// default pushback: away from facing direction
 			if (walkDir == LEFT)
+				pushBackDir = RIGHT;
+			else
+				pushBackDir = LEFT;
+			pushBackOffsetDir = UP;
+			pushDrawOffset = 0;
+		}
+	}
+
+	// Overload: allow specifying attacker X coordinate so pushback is away from attacker
+	public void hurt(int amount, float attackerX) {
+		if (dodgeActive) return; // ignore damage while dodging
+		System.out.println("DBG: Enemy.hurt called amount=" + amount + " beforeHP=" + currentHealth + " type=" + enemyType + " attackerX=" + attackerX + " x=" + hitbox.x);
+		currentHealth -= amount;
+		System.out.println("DBG: Enemy.hurt afterHP=" + currentHealth + "");
+		if (currentHealth <= 0)
+			newState(DEAD);
+		else {
+			newState(HIT);
+			// If attacker is to the left of enemy, push right; otherwise push left
+			if (attackerX < hitbox.x)
 				pushBackDir = RIGHT;
 			else
 				pushBackDir = LEFT;
