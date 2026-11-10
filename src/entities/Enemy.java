@@ -52,6 +52,7 @@ public abstract class Enemy extends Entity {
 	protected void firstUpdateCheck(int[][] lvlData) {
 		if (!IsEntityOnFloor(hitbox, lvlData))
 			inAir = true;
+		tileY = (int) (hitbox.y / Game.TILES_SIZE);
 		firstUpdate = false;
 	}
 
@@ -128,10 +129,8 @@ public abstract class Enemy extends Entity {
 	}
 
 	public void hurt(int amount) {
-		if (dodgeActive) return; // ignore damage while dodging
-		System.out.println("DBG: Enemy.hurt called (no attacker) amount=" + amount + " beforeHP=" + currentHealth + " type=" + enemyType + " x=" + hitbox.x);
-		currentHealth -= amount;
-		System.out.println("DBG: Enemy.hurt afterHP=" + currentHealth + "");
+		if (dodgeActive || !active || state == DEAD || amount <= 0) return;
+		currentHealth = Math.max(0, currentHealth - amount);
 		if (currentHealth <= 0)
 			newState(DEAD);
 		else {
@@ -148,10 +147,8 @@ public abstract class Enemy extends Entity {
 
 	// Overload: allow specifying attacker X coordinate so pushback is away from attacker
 	public void hurt(int amount, float attackerX) {
-		if (dodgeActive) return; // ignore damage while dodging
-		System.out.println("DBG: Enemy.hurt called amount=" + amount + " beforeHP=" + currentHealth + " type=" + enemyType + " attackerX=" + attackerX + " x=" + hitbox.x);
-		currentHealth -= amount;
-		System.out.println("DBG: Enemy.hurt afterHP=" + currentHealth + "");
+		if (dodgeActive || !active || state == DEAD || amount <= 0) return;
+		currentHealth = Math.max(0, currentHealth - amount);
 		if (currentHealth <= 0)
 			newState(DEAD);
 		else {
@@ -167,7 +164,7 @@ public abstract class Enemy extends Entity {
 	}
 
 	protected void checkPlayerHit(Rectangle2D.Float attackBox, Player player) {
-		if (attackBox.intersects(player.hitbox))
+		if (attackBox != null && player != null && attackBox.intersects(player.hitbox))
 			player.changeHealth(-GetEnemyDmg(enemyType), this);
 		else {
 			if (enemyType == SHARK)
@@ -220,6 +217,11 @@ public abstract class Enemy extends Entity {
 		newState(IDLE);
 		active = true;
 		airSpeed = 0;
+		walkDir = LEFT;
+		attackChecked = false;
+		dodgeActive = false;
+		dodgeTimer = 0;
+		tileY = (int) (hitbox.y / Game.TILES_SIZE);
 
 		pushDrawOffset = 0;
 
@@ -242,6 +244,10 @@ public abstract class Enemy extends Entity {
 	public boolean isActive() {
 		return active;
 	}
+
+	public int getCurrentHealth() { return currentHealth; }
+	public int getMaxHealth() { return maxHealth; }
+	public int getEnemyType() { return enemyType; }
 
 	public float getPushDrawOffset() {
 		return pushDrawOffset;

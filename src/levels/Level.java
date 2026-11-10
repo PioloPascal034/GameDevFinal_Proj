@@ -18,6 +18,8 @@ import objects.Grass;
 import objects.Potion;
 import objects.Spike;
 import objects.Ammo;
+import objects.CollectibleItem;
+import game.items.ItemDefinitions;
 
 import static utilz.Constants.EnemyConstants.*;
 import static utilz.Constants.ObjectConstants.*;
@@ -39,6 +41,7 @@ public class Level {
 	private ArrayList<Cannon> cannons = new ArrayList<>();
 	private ArrayList<BackgroundTree> trees = new ArrayList<>();
 	private ArrayList<Grass> grass = new ArrayList<>();
+	private ArrayList<CollectibleItem> collectibles = new ArrayList<>();
 
 	private int lvlTilesWide;
 	private int maxTilesOffset;
@@ -46,6 +49,8 @@ public class Level {
 	private Point playerSpawn;
 
 	public Level(BufferedImage img) {
+		if (img == null || img.getWidth() == 0 || img.getHeight() == 0)
+			throw new IllegalArgumentException("A level image must not be empty");
 		this.img = img;
 		lvlData = new int[img.getHeight()][img.getWidth()];
 		loadLevel();
@@ -60,7 +65,7 @@ public class Level {
 
 		for (int y = 0; y < img.getHeight(); y++)
 			for (int x = 0; x < img.getWidth(); x++) {
-				Color c = new Color(img.getRGB(x, y));
+				Color c = new Color(img.getRGB(x, y), true);
 				int red = c.getRed();
 				int green = c.getGreen();
 				int blue = c.getBlue();
@@ -117,13 +122,32 @@ public class Level {
 
 	private void calcLvlOffsets() {
 		lvlTilesWide = img.getWidth();
-		maxTilesOffset = lvlTilesWide - Game.TILES_IN_WIDTH;
+		maxTilesOffset = Math.max(0, lvlTilesWide - Game.TILES_IN_WIDTH);
 		maxLvlOffsetX = Game.TILES_SIZE * maxTilesOffset;
+		if (playerSpawn == null)
+			playerSpawn = findSafeSpawn();
+	}
+
+	private Point findSafeSpawn() {
+		for (int row = 0; row < lvlData.length; row++) {
+			for (int col = 0; col < lvlData[row].length; col++) {
+				if (!utilz.HelpMethods.isSolid(row, col, lvlData)
+						&& (row + 1 >= lvlData.length || utilz.HelpMethods.isSolid(row + 1, col, lvlData)))
+					return new Point(col * Game.TILES_SIZE, Math.max(0, row * Game.TILES_SIZE - Game.TILES_SIZE));
+			}
+		}
+		return new Point(Game.TILES_SIZE, Game.TILES_SIZE);
 	}
 
 	public int getSpriteIndex(int x, int y) {
+		if (y < 0 || y >= lvlData.length || x < 0 || x >= lvlData[y].length)
+			return 0;
 		return lvlData[y][x];
 	}
+
+	public int getWidthInTiles() { return lvlTilesWide; }
+
+	public int getHeightInTiles() { return lvlData.length; }
 
 	public int[][] getLevelData() {
 		return lvlData;
@@ -181,6 +205,12 @@ public class Level {
 
 	public ArrayList<Grass> getGrass() {
 		return grass;
+	}
+
+	public ArrayList<CollectibleItem> getCollectibles() { return collectibles; }
+
+	public void addCollectible(CollectibleItem collectible) {
+		if (collectible != null) collectibles.add(collectible);
 	}
 
 }

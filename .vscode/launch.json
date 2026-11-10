@@ -4,7 +4,7 @@
     
     {
       "type": "java",
-      "name": "MainClass (JDK 25)",
+      "name": "MainClass (JDK 21)",
       "request": "launch",
       "mainClass": "main.MainClass",
       "projectName": "newwww",

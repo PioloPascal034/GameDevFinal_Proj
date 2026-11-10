@@ -19,9 +19,12 @@ import ui.GameCompletedOverlay;
 import ui.GameOverOverlay;
 import ui.LevelCompletedOverlay;
 import ui.PauseOverlay;
+import ui.InventoryOverlay;
 import utilz.LoadSave;
 import effects.DialogueEffect;
 import effects.Rain;
+import engine.Camera;
+import engine.DebugOverlay;
 
 import static utilz.Constants.Environment.*;
 import static utilz.Constants.Dialogue.*;
@@ -70,6 +73,11 @@ public class Playing extends State implements Statemethods {
 
     private boolean drawShip = false;
     private boolean debugOffsetMode = false;
+    private boolean inventoryOpen;
+    private boolean iPressed;
+    private final InventoryOverlay inventoryOverlay = new InventoryOverlay();
+    private final Camera camera = new Camera();
+    private final DebugOverlay debugOverlay = new DebugOverlay();
     // guard to ensure one-shot fire per press
     private boolean fPressed = false;
     // temporary on-screen status message (e.g., "Immortality ON") in ms
@@ -191,7 +199,6 @@ public class Playing extends State implements Statemethods {
 
     @Override
     public void update() {
-        System.out.println("DBG: Playing.update -> gameOver=" + gameOver + " playerDying=" + playerDying + " lvlCompleted=" + lvlCompleted + " fragmentCollected=" + fragmentCollected + " fragmentDialogueDone=" + fragmentDialogueDone + " startFade=" + startFadeToLevelComplete);
         // if a cutscene is active, only update it and skip normal game updates
         if (game.getCutsceneManager() != null && game.getCutsceneManager().isActive()) {
             game.getCutsceneManager().update();
@@ -199,6 +206,8 @@ public class Playing extends State implements Statemethods {
         }
         // update status message timer
         updateStatusMessage();
+        if (inventoryOpen)
+            return;
         if (paused)
             pauseOverlay.update();
         else if (lvlCompleted)
@@ -299,20 +308,33 @@ public class Playing extends State implements Statemethods {
             xLvlOffset += diff - leftBorder;
 
         xLvlOffset = Math.max(Math.min(xLvlOffset, maxLvlOffsetX), 0);
+        camera.follow(player.getHitbox(), Game.GAME_WIDTH, Game.GAME_HEIGHT,
+                levelManager.getCurrentLevel().getWidthInTiles() * Game.TILES_SIZE,
+                levelManager.getCurrentLevel().getHeightInTiles() * Game.TILES_SIZE);
+        xLvlOffset = (int) camera.getX();
     }
 
     @Override
     public void draw(Graphics g) {
         g.drawImage(backgroundImg, 0, 0, Game.GAME_WIDTH, Game.GAME_HEIGHT, null);
 
-        drawClouds(g);
+        java.awt.Graphics2D world = (java.awt.Graphics2D) g.create();
+        world.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION,
+                java.awt.RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
+        world.scale(camera.getZoom(), camera.getZoom());
+        drawClouds(world);
         if (drawRain)
-            rain.draw(g, xLvlOffset);
-
-        levelManager.draw(g, xLvlOffset);
-        objectManager.draw(g, xLvlOffset);
-        enemyManager.draw(g, xLvlOffset);
-        player.render(g, xLvlOffset);
+            rain.draw(world, xLvlOffset);
+        levelManager.draw(world, xLvlOffset);
+        objectManager.draw(world, xLvlOffset);
+        enemyManager.draw(world, xLvlOffset);
+        player.render(world, xLvlOffset);
+        objectManager.drawBackgroundTrees(world, xLvlOffset);
+        drawDialogue(world, xLvlOffset);
+        world.dispose();
+        player.renderUI(g);
+		if (inventoryOpen)
+			inventoryOverlay.draw(g, player.getInventory());
 
         // Draw level and fragment count indicator
         try {
@@ -331,6 +353,9 @@ public class Playing extends State implements Statemethods {
             g.drawString("Use Arrow Keys to nudge (1px).", 12, 56);
         }
 
+        debugOverlay.draw(g, game.getCurrentFps(), player.getHitbox(), player.getAirSpeed(), !player.isInAir(),
+                camera.getX(), camera.getY(), camera.getZoom());
+
         // transient status message (e.g., Immortality ON/OFF)
         if (statusMessage != null) {
             java.awt.FontMetrics fm = g.getFontMetrics();
@@ -345,9 +370,6 @@ public class Playing extends State implements Statemethods {
             g.drawRect(x, y, w, h);
             g.drawString(statusMessage, x + 10, y + fm.getAscent() + 6);
         }
-        objectManager.drawBackgroundTrees(g, xLvlOffset);
-        drawDialogue(g, xLvlOffset);
-
         // draw fade if active (fadeAlpha 0..1)
         if (fadeAlpha > 0f) {
             int alpha = (int) (Math.min(1f, fadeAlpha) * 255);
@@ -466,10 +488,31 @@ public class Playing extends State implements Statemethods {
 
     @Override
     public void keyPressed(KeyEvent e) {
+        if (e.getKeyCode() == KeyEvent.VK_I) {
+            if (!iPressed) {
+                inventoryOpen = !inventoryOpen;
+                iPressed = true;
+                player.resetDirBooleans();
+                player.setJump(false);
+                player.setRunning(false);
+            }
+            return;
+        }
+		if (inventoryOpen) {
+			switch (e.getKeyCode()) {
+				case KeyEvent.VK_LEFT, KeyEvent.VK_UP -> player.getInventory().moveSelection(-1);
+				case KeyEvent.VK_RIGHT, KeyEvent.VK_DOWN -> player.getInventory().moveSelection(1);
+			}
+			return;
+		}
         // Block most inputs if game over/completed/level completed
         if (!gameOver && !gameCompleted && !lvlCompleted) {
             if (e.getKeyCode() == KeyEvent.VK_F3) {
-                debugOffsetMode = !debugOffsetMode;
+                debugOverlay.toggle();
+                return;
+            }
+            if (e.getKeyCode() == KeyEvent.VK_Z) {
+                camera.toggleZoom();
                 return;
             }
 
@@ -592,6 +635,12 @@ public class Playing extends State implements Statemethods {
 
     @Override
     public void keyReleased(KeyEvent e) {
+        if (e.getKeyCode() == KeyEvent.VK_I) {
+            iPressed = false;
+            return;
+        }
+		if (inventoryOpen)
+			return;
         if (!gameOver && !gameCompleted && !lvlCompleted) {
             if (debugOffsetMode) return;
 
@@ -797,6 +846,8 @@ public class Playing extends State implements Statemethods {
     public LevelManager getLevelManager() {
         return levelManager;
     }
+
+    public boolean isInventoryOpen() { return inventoryOpen; }
     public boolean isGameOver() {
         return gameOver;
     }

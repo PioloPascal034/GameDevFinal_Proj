@@ -17,7 +17,7 @@ public class Crabby extends Enemy {
 	public void update(int[][] lvlData, Playing playing) {
 		updateBehavior(lvlData, playing);
 		updateAnimationTick();
-		updateAttackBox();
+		updateAttackBoxFlip();
 	}
 
 	private void updateBehavior(int[][] lvlData, Playing playing) {

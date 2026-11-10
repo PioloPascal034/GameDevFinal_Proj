@@ -46,8 +46,13 @@ public class Boss extends Enemy {
         if (aniTick >= 25) {
             aniTick = 0;
             aniIndex++;
-            if (aniIndex >= frameCount)
+            if (aniIndex >= frameCount) {
                 aniIndex = 0;
+                if (state == DEAD)
+                    active = false;
+                else if (state == HIT)
+                    state = IDLE;
+            }
         }
     }
 

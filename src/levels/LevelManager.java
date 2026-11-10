@@ -6,6 +6,8 @@ import java.util.ArrayList;
 
 import main.Game;
 import utilz.LoadSave;
+import game.items.ItemDefinitions;
+import objects.CollectibleItem;
 
 public class LevelManager {
 
@@ -26,8 +28,11 @@ public class LevelManager {
 	private void createWater() {
 		waterSprite = new BufferedImage[5];
 		BufferedImage img = LoadSave.GetSpriteAtlas(LoadSave.WATER_TOP);
-		for (int i = 0; i < 4; i++)
-			waterSprite[i] = img.getSubimage(i * 32, 0, 32, 32);
+		if (img != null) {
+			for (int i = 0; i < 4; i++)
+				waterSprite[i] = (i + 1) * 32 <= img.getWidth() && img.getHeight() >= 32
+						? img.getSubimage(i * 32, 0, 32, 32) : null;
+		}
 		waterSprite[4] = LoadSave.GetSpriteAtlas(LoadSave.WATER_BOTTOM);
 	}
 
@@ -42,7 +47,35 @@ public class LevelManager {
 	private void buildAllLevels() {
 		BufferedImage[] allLevels = LoadSave.GetAllLevels();
 		for (BufferedImage img : allLevels)
-			levels.add(new Level(img));
+			if (img != null && img.getWidth() > 0 && img.getHeight() > 0)
+				levels.add(new Level(img));
+		if (levels.isEmpty())
+			levels.add(new Level(createFallbackLevel()));
+		addAuroraDemonstrationCollectibles();
+	}
+
+	private void addAuroraDemonstrationCollectibles() {
+		Level first = levels.get(0);
+		int spawnX = first.getPlayerSpawn().x;
+		int spawnY = first.getPlayerSpawn().y;
+		first.addCollectible(new CollectibleItem(spawnX + Game.TILES_SIZE * 3, spawnY,
+				ItemDefinitions.AURORA_SHARD, 1));
+		first.addCollectible(new CollectibleItem(spawnX + Game.TILES_SIZE * 6, spawnY,
+				ItemDefinitions.HERB, 3));
+	}
+
+	/** Minimal playable fallback so a missing/corrupt level asset is recoverable. */
+	private BufferedImage createFallbackLevel() {
+		int width = Game.TILES_IN_WIDTH;
+		int height = Game.TILES_IN_HEIGHT;
+		BufferedImage fallback = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+		for (int y = 0; y < height; y++)
+			for (int x = 0; x < width; x++) {
+				int red = y == height - 1 ? 1 : 11;
+				int green = (x == 2 && y == height - 2) ? 100 : 0;
+				fallback.setRGB(x, y, new java.awt.Color(red, green, 0).getRGB());
+			}
+		return fallback;
 	}
 
 	private void importOutsideSprites() {
@@ -56,16 +89,21 @@ public class LevelManager {
 	}
 
 	public void draw(Graphics g, int lvlOffset) {
-		for (int j = 0; j < Game.TILES_IN_HEIGHT; j++)
-			for (int i = 0; i < levels.get(lvlIndex).getLevelData()[0].length; i++) {
+		Level level = levels.get(lvlIndex);
+		int firstCol = Math.max(0, lvlOffset / Game.TILES_SIZE - 1);
+		int lastCol = Math.min(level.getWidthInTiles(), firstCol + Game.TILES_IN_WIDTH + 3);
+		int firstRow = 0;
+		int lastRow = Math.min(level.getHeightInTiles(), Game.TILES_IN_HEIGHT + 1);
+		for (int j = firstRow; j < lastRow; j++)
+			for (int i = firstCol; i < lastCol; i++) {
 				int index = levels.get(lvlIndex).getSpriteIndex(i, j);
 				int x = Game.TILES_SIZE * i - lvlOffset;
 				int y = Game.TILES_SIZE * j;
-				if (index == 48)
+				if (index == 48 && waterSprite[aniIndex] != null)
 					g.drawImage(waterSprite[aniIndex], x, y, Game.TILES_SIZE, Game.TILES_SIZE, null);
-				else if (index == 49)
+				else if (index == 49 && waterSprite[4] != null)
 					g.drawImage(waterSprite[4], x, y, Game.TILES_SIZE, Game.TILES_SIZE, null);
-				else
+				else if (index >= 0 && index < levelSprite.length && levelSprite[index] != null)
 					g.drawImage(levelSprite[index], x, y, Game.TILES_SIZE, Game.TILES_SIZE, null);
 			}
 	}

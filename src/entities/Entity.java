@@ -93,6 +93,10 @@ public abstract class Entity {
 		return aniIndex;
 	}
 
+	public float getAirSpeed() { return airSpeed; }
+
+	public boolean isInAir() { return inAir; }
+
 	protected void newState(int state) {
 		this.state = state;
 		aniTick = 0;

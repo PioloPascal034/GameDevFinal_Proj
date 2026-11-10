@@ -1,6 +1,7 @@
 package main;
 
 import java.awt.Graphics;
+import java.util.concurrent.locks.LockSupport;
 
 import audio.AudioPlayer;
 import gamestates.*;
@@ -31,6 +32,8 @@ public class Game implements Runnable {
     public final static int GAME_HEIGHT = TILES_SIZE * TILES_IN_HEIGHT;
 
     private final boolean SHOW_FPS_UPS = true;
+    private volatile int currentFps;
+    private volatile int currentUps;
 
     public Game() {
         System.out.println("size: " + GAME_WIDTH + " : " + GAME_HEIGHT);
@@ -109,13 +112,16 @@ public class Game implements Runnable {
             deltaF += (currentTime - previousTime) / timePerFrame;
             previousTime = currentTime;
 
-            if (deltaU >= 1) {
-
-                update();
-                updates++;
-                deltaU--;
-
-            }
+			// Fixed 60 Hz simulation. Cap catch-up work after a pause/window drag
+			// so a long stall cannot freeze the presentation in a spiral of updates.
+			int updateBudget = 0;
+			while (deltaU >= 1 && updateBudget++ < 5) {
+				update();
+				updates++;
+				deltaU--;
+			}
+			if (updateBudget >= 5)
+				deltaU = 0;
 
             if (deltaF >= 1) {
 
@@ -129,11 +135,18 @@ public class Game implements Runnable {
                 if (System.currentTimeMillis() - lastCheck >= 1000) {
 
                     lastCheck = System.currentTimeMillis();
+                    currentFps = frames;
+                    currentUps = updates;
                     System.out.println("FPS: " + frames + " | UPS: " + updates);
                     frames = 0;
                     updates = 0;
 
                 }
+
+            // Do not busy-spin. Give Swing's EDT time to repaint and process input;
+            // otherwise this loop can consume a full CPU core and make the game
+            // appear to run in slow motion.
+            LockSupport.parkNanos(500_000L);
 
         }
     }
@@ -168,4 +181,7 @@ public class Game implements Runnable {
     public AudioPlayer getAudioPlayer() {
         return audioPlayer;
     }
+
+    public int getCurrentFps() { return currentFps; }
+    public int getCurrentUps() { return currentUps; }
 }

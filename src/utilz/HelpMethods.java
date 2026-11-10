@@ -8,36 +8,41 @@ import objects.Projectile;
 public class HelpMethods {
 
 	public static boolean CanMoveHere(float x, float y, float width, float height, int[][] lvlData) {
-		if (!IsSolid(x, y, lvlData))
-			if (!IsSolid(x + width, y + height, lvlData))
-				if (!IsSolid(x + width, y, lvlData))
-					if (!IsSolid(x, y + height, lvlData))
-						return true;
-		return false;
+		if (lvlData == null || lvlData.length == 0 || lvlData[0] == null || lvlData[0].length == 0)
+			return false;
+		// Use points just inside each corner. Sampling exactly at x + width or
+		// y + height makes a box touching a tile boundary collide with the next
+		// tile and was the source of corner clipping and jitter.
+		final float epsilon = 0.01f;
+		return !IsSolid(x + epsilon, y + epsilon, lvlData)
+				&& !IsSolid(x + width - epsilon, y + epsilon, lvlData)
+				&& !IsSolid(x + epsilon, y + height - epsilon, lvlData)
+				&& !IsSolid(x + width - epsilon, y + height - epsilon, lvlData);
 	}
 
 	private static boolean IsSolid(float x, float y, int[][] lvlData) {
+		if (lvlData == null || lvlData.length == 0 || lvlData[0] == null || lvlData[0].length == 0)
+			return true;
 		int maxWidth = lvlData[0].length * Game.TILES_SIZE;
+		int maxHeight = lvlData.length * Game.TILES_SIZE;
 		if (x < 0 || x >= maxWidth)
 			return true;
-		if (y < 0 || y >= Game.GAME_HEIGHT)
+		if (y < 0 || y >= maxHeight)
 			return true;
-		float xIndex = x / Game.TILES_SIZE;
-		float yIndex = y / Game.TILES_SIZE;
-
-		return IsTileSolid((int) xIndex, (int) yIndex, lvlData);
+		return isSolid((int) (y / Game.TILES_SIZE), (int) (x / Game.TILES_SIZE), lvlData);
 	}
 
 	// Overload: allow treating hazards as solid when requested
 	private static boolean IsSolid(float x, float y, int[][] lvlData, boolean treatHazardAsSolid) {
+		if (lvlData == null || lvlData.length == 0 || lvlData[0] == null || lvlData[0].length == 0)
+			return true;
 		int maxWidth = lvlData[0].length * Game.TILES_SIZE;
+		int maxHeight = lvlData.length * Game.TILES_SIZE;
 		if (x < 0 || x >= maxWidth)
 			return true;
-		if (y < 0 || y >= Game.GAME_HEIGHT)
+		if (y < 0 || y >= maxHeight)
 			return true;
-		float xIndex = x / Game.TILES_SIZE;
-		float yIndex = y / Game.TILES_SIZE;
-		return IsTileSolid((int) xIndex, (int) yIndex, lvlData, treatHazardAsSolid);
+		return isSolid((int) (y / Game.TILES_SIZE), (int) (x / Game.TILES_SIZE), lvlData, treatHazardAsSolid);
 	}
 
 	public static boolean IsProjectileHittingLevel(Projectile p, int[][] lvlData) {
@@ -54,9 +59,29 @@ public class HelpMethods {
 	}
 
 	private static int GetTileValue(float xPos, float yPos, int[][] lvlData) {
+		if (lvlData == null || lvlData.length == 0 || xPos < 0 || yPos < 0)
+			return -1;
 		int xCord = (int) (xPos / Game.TILES_SIZE);
 		int yCord = (int) (yPos / Game.TILES_SIZE);
+		if (yCord >= lvlData.length || xCord >= lvlData[yCord].length)
+			return -1;
 		return lvlData[yCord][xCord];
+	}
+
+	/** Safe tile query used by collision and gameplay systems. */
+	public static boolean isSolid(int row, int col, int[][] lvlData) {
+		if (lvlData == null || row < 0 || row >= lvlData.length || lvlData[row] == null
+				|| col < 0 || col >= lvlData[row].length)
+			return true;
+		return IsTileSolid(col, row, lvlData);
+	}
+
+	/** Safe tile query with optional hazard treatment. */
+	public static boolean isSolid(int row, int col, int[][] lvlData, boolean treatHazardAsSolid) {
+		if (lvlData == null || row < 0 || row >= lvlData.length || lvlData[row] == null
+				|| col < 0 || col >= lvlData[row].length)
+			return true;
+		return IsTileSolid(col, row, lvlData, treatHazardAsSolid);
 	}
 
 	public static boolean IsTileSolid(int xTile, int yTile, int[][] lvlData) {

@@ -14,6 +14,7 @@ import static utilz.Constants.ObjectConstants.*;
 import static utilz.Constants.Projectiles.*;
 import utilz.HelpMethods;
 import utilz.LoadSave;
+import engine.Inventory;
 
 public class ObjectManager {
 
@@ -204,11 +205,25 @@ public class ObjectManager {
         updateList(ammos);
         updateList(fragments);
         updateList(containers);
+		checkCollectibleCollection(player);
 
         updateCannons(lvlData, player);
         updateProjectiles(lvlData, player);
         checkFragmentCollection(player);
     }
+
+	private void checkCollectibleCollection(Player player) {
+		Inventory inventory = player.getInventory();
+		for (CollectibleItem collectible : currentLevel.getCollectibles()) {
+			if (collectible.isActive() && collectible.getHitbox().intersects(player.getHitbox())) {
+				int added = inventory.add(collectible.getItem(), collectible.getQuantity());
+				collectible.consume(added);
+				if (collectible.getQuantity() == 0) collectible.setActive(false);
+				if (added > 0) playing.showStatusMessage("Collected " + collectible.getItem().getName(), 900);
+				else playing.showStatusMessage("Inventory full", 900);
+			}
+		}
+	}
 
     private <T extends GameObject> void updateList(ArrayList<T> list) {
         for (T obj : list)
@@ -392,6 +407,8 @@ public class ObjectManager {
         drawAmmos(g, xLvlOffset);
         drawFragments(g, xLvlOffset);
         drawGrass(g, xLvlOffset);
+		for (CollectibleItem collectible : currentLevel.getCollectibles())
+			collectible.draw(g, xLvlOffset);
     }
 
     public void drawBackgroundTrees(Graphics g, int xLvlOffset) {

@@ -225,8 +225,15 @@ public class EnemyManager {
 					}
 			}
 
+		for (entities.LesserEnemy le : currentLevel.getLesserEnemies())
+			if (le.isActive() && le.getState() != DEAD && le.getState() != HIT
+					&& attackBox.intersects(le.getHitbox())) {
+				le.hurt(20);
+				return;
+			}
+
 		for (Boss b : currentLevel.getBosses())
-			if (b.isActive()) {
+			if (b.isActive() && b.getState() != DEAD && b.getState() != HIT) {
 				if (attackBox.intersects(b.getHitbox())) {
 					b.hurt(20);
 					return;

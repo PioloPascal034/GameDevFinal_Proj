@@ -15,6 +15,7 @@ import static utilz.Constants.Directions.*;
 import static utilz.Constants.PlayerConstants.*;
 import static utilz.HelpMethods.*;
 import utilz.LoadSave;
+import engine.Inventory;
 
 public class Player extends Entity {
     // Draw offsets for sprite alignment
@@ -22,6 +23,8 @@ public class Player extends Entity {
     private int yDrawOffset = 0;
 
     private BufferedImage[][] animations;
+    private BufferedImage fallbackFrame;
+    private final Inventory inventory = new Inventory();
     private boolean moving = false, attacking = false;
     private boolean left, right, jump;
     private int[][] lvlData;
@@ -131,6 +134,7 @@ public class Player extends Entity {
             animations = custom;
         else
             animations = LoadSave.loadTestAnimations();
+        fallbackFrame = findFallbackFrame();
         // no gun overlay: we only track whether player has the gun ability
         // initialize hitbox to character defaults
         initHitbox(playerCharacter.hitboxW, playerCharacter.hitboxH);
@@ -151,6 +155,8 @@ public class Player extends Entity {
     public PlayerCharacter getPlayerCharacter() {
         return playerCharacter;
     }
+
+    public Inventory getInventory() { return inventory; }
 
     private void initAttackBox() {
         attackBox = new Rectangle2D.Float(x, y, (int) (35 * Game.SCALE), (int) (20 * Game.SCALE));
@@ -365,7 +371,14 @@ public class Player extends Entity {
             drawX += width;
         int drawY = (int) (hitbox.y - playerCharacter.yDrawOffset + pushDrawOffset);
 
-        BufferedImage frame = animations[playerCharacter.getRowIndex(state)][aniIndex];
+        BufferedImage[] stateFrames = animations != null && playerCharacter.getRowIndex(state) < animations.length
+                ? animations[playerCharacter.getRowIndex(state)] : null;
+        BufferedImage frame = stateFrames != null && stateFrames.length > 0
+                ? stateFrames[Math.min(aniIndex, stateFrames.length - 1)] : null;
+        if (frame == null) {
+            // Missing optional animation assets must not crash a presentation build.
+            frame = findFallbackFrame();
+        }
         // If block or immortality is active (Q hold or immortality hold), draw inverted colors
         if (blockActive || immortalityActive) {
             try {
@@ -391,7 +404,6 @@ public class Player extends Entity {
 
         drawHitbox(g, lvlOffset);
 //        drawAttackBox(g, lvlOffset);
-        drawUI(g);
 
         // Debug: draw last shot marker in world coords (visible where bullet spawns)
         if (lastShotX >= 0 && lastShotY >= 0) {
@@ -401,6 +413,19 @@ public class Player extends Entity {
             g.fillOval(mx - 3, my - 3, 6, 6);
         }
     }
+
+    private BufferedImage findFallbackFrame() {
+        if (animations != null)
+            for (BufferedImage[] row : animations)
+                if (row != null)
+                    for (BufferedImage image : row)
+                        if (image != null) return image;
+        if (fallbackFrame == null)
+            fallbackFrame = new BufferedImage(Math.max(1, width), Math.max(1, height), BufferedImage.TYPE_INT_ARGB);
+        return fallbackFrame;
+    }
+
+    public void renderUI(Graphics g) { drawUI(g); }
 
     private void drawUI(Graphics g) {
         // Background ui

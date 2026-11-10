@@ -56,11 +56,11 @@
   "C_Cpp_Runner.showCompilationTime": false,
   "C_Cpp_Runner.useLinkTimeOptimization": false,
   "C_Cpp_Runner.msvcSecureNoWarnings": false,
-  "java.jdt.ls.java.home": "C:\\Program Files\\Java\\jdk-25",
+  "java.jdt.ls.java.home": "C:\\Program Files\\Java\\jdk-21.0.11",
   "java.configuration.runtimes": [
     {
-      "name": "JavaSE-25",
-      "path": "C:\\Program Files\\Java\\jdk-25",
+      "name": "JavaSE-21",
+      "path": "C:\\Program Files\\Java\\jdk-21.0.11",
       "default": true
     }
   ]
